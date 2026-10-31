@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สร้างโค้ด SQL: CXR คัดกรองวัณโรคกลุ่มเสี่ยง (HOSxP XE)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#fff; --ink:#1d2733; --muted:#5f6b7a; --line:#dde3ea;
+    --brand:#0f5e7a; --brand-2:#e7f2f6; --accent:#c2410c; --ok:#15803d; --err:#b91c1c;
+    --code-bg:#0f1720; --code-ink:#d6e2ee; --mark:#fde68a; --mark-ink:#1d2733;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Thai",system-ui,sans-serif;font-size:15px;line-height:1.6}
+  header{background:var(--brand);color:#fff;padding:22px 20px 18px}
+  header .wrap{max-width:1280px;margin:0 auto}
+  header h1{margin:0;font-size:22px;font-weight:700}
+  header p{margin:4px 0 0;opacity:.9;font-size:14px}
+  main{max-width:1280px;margin:0 auto;padding:20px;display:grid;grid-template-columns:400px 1fr;gap:20px;align-items:start}
+  @media (max-width:980px){main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .card h2{margin:0 0 12px;font-size:17px;color:var(--brand)}
+  .card h3{margin:18px 0 8px;font-size:14px;color:var(--muted);font-weight:600;border-top:1px dashed var(--line);padding-top:14px}
+  .side{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+  @media (max-width:980px){.side{position:static;max-height:none}}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-weight:600;font-size:14px;margin-bottom:3px}
+  .field .hint{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .field input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:"JetBrains Mono",monospace;font-size:14px;background:#fbfcfd}
+  .field input:focus{outline:2px solid var(--brand);outline-offset:0;border-color:var(--brand);background:#fff}
+  .field.bad input{border-color:var(--err);background:#fef2f2}
+  .field .err{color:var(--err);font-size:12.5px;margin-top:3px;display:none}
+  .field.bad .err{display:block}
+  .field .def{font-size:12px;color:var(--muted);float:right;font-weight:400}
+  .field.changed label::after{content:"แก้ไขแล้ว";margin-left:8px;font-size:11px;font-weight:600;color:var(--accent);background:#fff1e8;border-radius:4px;padding:1px 6px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  button{font-family:inherit;font-size:14px;font-weight:600;border-radius:7px;padding:8px 14px;cursor:pointer;border:1px solid var(--brand)}
+  .primary{background:var(--brand);color:#fff}
+  .primary:hover{background:#0b4a61}
+  .ghost{background:#fff;color:var(--brand)}
+  .ghost:hover{background:var(--brand-2)}
+  details{margin-top:4px}
+  details summary{cursor:pointer;font-weight:600;color:var(--brand);font-size:14px;padding:4px 0}
+  .codehead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .codehead h2{margin:0}
+  .status{font-size:13px;color:var(--muted)}
+  .status b{color:var(--accent)}
+  pre{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:9px;padding:16px;overflow:auto;font-family:"JetBrains Mono",monospace;font-size:12.8px;line-height:1.55;max-height:78vh;tab-size:4}
+  pre mark{background:var(--mark);color:var(--mark-ink);border-radius:3px;padding:0 2px}
+  pre .cm{color:#7f93a8}
+  .copied{color:var(--ok);font-weight:600;font-size:13px;opacity:0;transition:opacity .2s}
+  .copied.on{opacity:1}
+  table.crit{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.crit td,table.crit th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  table.crit th{background:var(--brand-2);color:var(--brand);font-weight:600}
+  .mini pre{max-height:none;font-size:12.5px}
+  .mini p{margin:6px 0 8px;font-size:13.5px;color:var(--muted)}
+  .stack{display:grid;gap:20px}
+  footer{max-width:1280px;margin:10px auto 30px;padding:16px 20px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7;border-top:1px solid var(--line)}
+  footer a{color:var(--brand);font-weight:600}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>สร้างโค้ด SQL: ผู้ป่วยทำ CXR ที่เข้าเงื่อนไขเบิกชดเชย คัดกรองวัณโรคกลุ่มเสี่ยง</h1>
+  <p>HOSxP v4 (XE) บน PostgreSQL · กรอกรหัสของโรงพยาบาลท่านทางซ้าย แล้วกดคัดลอกโค้ดทางขวาไปรันได้ทันที</p>
+</div></header>
+
+<main>
+  <!-- ===== Inputs ===== -->
+  <section class="card side">
+    <h2>ตัวแปรของโรงพยาบาล</h2>
+
+    <div class="field" data-key="cxr">
+      <label>รหัส non drug (icode) ของ CXR <span class="def">ค่าเดิม 3005047, 3000212</span></label>
+      <input id="cxr" autocomplete="off">
+      <div class="hint">ใส่ได้หลายรหัส คั่นด้วยจุลภาค (,)</div>
+      <div class="err"></div>
+    </div>
+
+    <div class="field" data-key="hiv">
+      <label>รหัสคลินิก ARV (HIV) <span class="def">ค่าเดิม 013</span></label>
+      <input id="hiv" autocomplete="off">
+      <div class="err"></div>
+    </div>
+
+    <div class="field" data-key="dm">
+      <label>รหัสคลินิก DM (เบาหวาน) <span class="def">ค่าเดิม 001</span></label>
+      <input id="dm" autocomplete="off">
+      <div class="err"></div>
+    </div>
+
+    <div class="field" data-key="copd">
+      <label>รหัสคลินิก COPD <span class="def">ค่าเดิม 011</span></label>
+      <input id="copd" autocomplete="off">
+      <div class="err"></div>
+    </div>
+
+    <div class="field" data-key="subst">
+      <label>รหัสคลินิก Alcohol and substance <span class="def">ค่าเดิม 015</span></label>
+      <input id="subst" autocomplete="off">
+      <div class="hint">รหัสคลินิกต้องตรงตามตาราง <code>clinic</code> ทุกตัวอักษร เช่น <code>013</code> กับ <code>13</code> ถือเป็นคนละรหัส · ใส่หลายรหัสได้ · เว้นว่างได้ถ้าไม่มีคลินิกนั้น</div>
+      <div class="err"></div>
+    </div>
+
+    <details>
+      <summary>ตัวแปรเพิ่มเติม (ช่วงวันที่ / Lab / คัดกรอง)</summary>
+      <div class="row2" style="margin-top:8px">
+        <div class="field" data-key="d1">
+          <label>CXR ตั้งแต่</label>
+          <input id="d1" type="date">
+          <div class="err"></div>
+        </div>
+        <div class="field" data-key="d2">
+          <label>CXR ถึง</label>
+          <input id="d2" type="date">
+          <div class="err"></div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field" data-key="dx_from">
+          <label>ประวัติ ICD10 ตั้งแต่</label>
+          <input id="dx_from" type="date">
+          <div class="err"></div>
+        </div>
+        <div class="field" data-key="hist_from">
+          <label>ประวัติ Lab/คัดกรอง ตั้งแต่</label>
+          <input id="hist_from" type="date">
+          <div class="err"></div>
+        </div>
+      </div>
+      <div class="field" data-key="a1c">
+        <label>lab_items_code ของ HbA1c <span class="def">ว่าง = ค้นจากชื่อ</span></label>
+        <input id="a1c" autocomplete="off" placeholder="ว่างไว้ = ค้นชื่อ a1c / glycat">
+        <div class="err"></div>
+      </div>
+      <div class="field" data-key="egfr">
+        <label>lab_items_code ของ eGFR <span class="def">ว่าง = ค้นจากชื่อ</span></label>
+        <input id="egfr" autocomplete="off" placeholder="ว่างไว้ = ค้นชื่อ gfr">
+        <div class="err"></div>
+      </div>
+      <div class="row2">
+        <div class="field" data-key="smoke">
+          <label>smoking_type_id ที่ถือว่าสูบ</label>
+          <input id="smoke" autocomplete="off">
+          <div class="err"></div>
+        </div>
+        <div class="field" data-key="drink">
+          <label>drinking_type_id ที่ถือว่าดื่ม</label>
+          <input id="drink" autocomplete="off">
+          <div class="err"></div>
+        </div>
+      </div>
+    </details>
+
+    <div class="btns">
+      <button class="primary" id="copyBtn2">คัดลอกโค้ด</button>
+      <button class="ghost" id="resetBtn">คืนค่าเดิม</button>
+    </div>
+  </section>
+
+  <!-- ===== Output ===== -->
+  <div class="stack">
+    <section class="card">
+      <div class="codehead">
+        <h2>โค้ด SQL</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="copied" id="copiedMsg">คัดลอกแล้ว ✓</span>
+          <button class="primary" id="copyBtn">คัดลอกโค้ด</button>
+        </div>
+      </div>
+      <div class="status" id="status"></div>
+      <pre id="out"></pre>
+    </section>
+
+    <section class="card">
+      <h2>เงื่อนไขที่โค้ดตรวจ (ข้อใดข้อหนึ่ง = eligible Y)</h2>
+      <table class="crit">
+        <tr><th>#</th><th>กลุ่มเสี่ยง</th><th>เกณฑ์ในโค้ด</th></tr>
+        <tr><td>1</td><td>ผู้ติดเชื้อ HIV</td><td>ICD10 B20–B24 หรืออยู่คลินิก ARV</td></tr>
+        <tr><td>2</td><td>เบาหวานคุมไม่ได้</td><td>(ICD10 E10–E11 หรือคลินิก DM) และ HbA1c ล่าสุด ≥ 7</td></tr>
+        <tr><td>3</td><td>ไตวายเรื้อรัง</td><td>ICD10 N183–N185 หรือ eGFR ล่าสุด &lt; 60</td></tr>
+        <tr><td>4</td><td>อายุ ≥ 65 ปี + เบาหวาน</td><td>อายุ ณ วันทำ CXR ≥ 65 และ (ICD10 E10–E11 หรือคลินิก DM)</td></tr>
+        <tr><td>5</td><td>อายุ ≥ 65 ปี + COPD</td><td>อายุ ≥ 65 และ (ICD10 J44 หรือคลินิก COPD)</td></tr>
+        <tr><td>6</td><td>ติดสุรา / สารเสพติด</td><td>ICD10 F10–F19 หรือคลินิก Alcohol/substance หรือคัดกรองว่าดื่ม</td></tr>
+        <tr><td>7</td><td>อายุ ≥ 65 ปี + สูบบุหรี่</td><td>อายุ ≥ 65 และคัดกรองล่าสุดว่าสูบ</td></tr>
+        <tr><td>8</td><td>บุคลากรสาธารณสุข</td><td>เลข CID ตรงกับตาราง <code>doctor</code></td></tr>
+      </table>
+      <p class="status" style="margin-top:10px">เฉพาะ OPD สัญชาติไทย · 1 แถวต่อคนต่อปีงบประมาณ (เลือก CXR ครั้งแรกที่เข้าเงื่อนไข ถ้าไม่เข้าเลยแสดงครั้งแรกพร้อมหมู่/ตำบล)</p>
+    </section>
+
+    <section class="card mini">
+      <h2>โค้ดช่วยหารหัสของโรงพยาบาลท่าน</h2>
+      <p>หารหัส CXR ใน non drug</p>
+      <pre id="helpCxr">SELECT icode, name, istatus
+FROM nondrugitems
+WHERE name ILIKE '%chest%' OR name ILIKE '%CXR%' OR name ILIKE '%ทรวงอก%'
+ORDER BY icode;</pre>
+      <p>ดูรหัสคลินิกทั้งหมด</p>
+      <pre id="helpClinic">SELECT clinic, name
+FROM clinic
+ORDER BY clinic;</pre>
+      <p>หารหัส Lab HbA1c / eGFR (ถ้าค้นจากชื่อแล้วได้ผลไม่ตรง)</p>
+      <pre id="helpLab">SELECT lab_items_code, lab_items_name
+FROM lab_items
+WHERE lab_items_name ~* '(a1c|glycat|gfr)'
+ORDER BY lab_items_name;</pre>
+    </section>
+  </div>
+</main>
+
+<footer>
+  ออกแบบและพัฒนาโดย นายแพทย์กุลพล ตั้งรัตนาพิบูล<br>
+  นายแพทย์ชำนาญการ (ด้านเวชกรรม)<br>
+  ปฏิบัติหน้าที่ผู้อำนวยการ<a href="https://www.songkwaehospital.com/" target="_blank" rel="noopener">โรงพยาบาลสองแคว</a> อำเภอสองแคว จังหวัดน่าน
+</footer>
+
+<script type="text/plain" id="tpl">/* =====================================================================
+   CXR PA upright - TB risk group screening (claimable) check  [FAST]
+   HOSxP XE (PostgreSQL)
+   ** ตัวแปรของโรงพยาบาลอยู่ใน params ด้านล่าง **
+   ===================================================================== */
+
+WITH params AS (
+    SELECT
+        {{D1}} AS d1,          -- CXR start date
+        {{D2}} AS d2,          -- CXR end date
+        {{DX_FROM}} AS dx_from,     -- ICD10 history from
+        {{HIST_FROM}} AS hist_from,   -- lab / screening history from
+        {{CXR}} AS cxr_icodes,  -- non drug icode ของ CXR
+        {{CL_HIV}} AS cl_hiv,      -- รหัสคลินิก ARV
+        {{CL_DM}} AS cl_dm,       -- รหัสคลินิก DM
+        {{CL_COPD}} AS cl_copd,     -- รหัสคลินิก COPD
+        {{CL_SUBST}} AS cl_subst,    -- รหัสคลินิก Alcohol and substance
+        {{A1C}} AS a1c_codes,   -- HbA1c lab_items_code, empty = match by name
+        {{EGFR}} AS egfr_codes,  -- eGFR lab_items_code, empty = match by name
+        {{SMOKE}} AS smoke_yes,
+        {{DRINK}} AS drink_yes
+),
+
+cxr AS (
+    SELECT
+        o.hn, o.vn, o.an,
+        o.rxdate                          AS cxr_date,
+        MAX(o.pttype)                     AS pttype,
+        string_agg(DISTINCT o.icode, ',') AS cxr_icode,
+        SUM(o.qty)                        AS cxr_qty,
+        SUM(o.sum_price)                  AS cxr_price
+    FROM opitemrece o
+    CROSS JOIN params p
+    WHERE o.icode = ANY (p.cxr_icodes)
+      AND o.rxdate BETWEEN p.d1 AND p.d2
+      AND COALESCE(o.an, '') = ''        -- OPD only
+      AND COALESCE(o.vn, '') <> ''
+    GROUP BY o.hn, o.vn, o.an, o.rxdate
+),
+cxr_pt AS (
+    SELECT
+        row_number() OVER (ORDER BY c.cxr_date, c.hn) AS row_id,
+        c.*,
+        pt.cid,
+        concat(pt.pname, pt.fname, ' ', pt.lname)  AS ptname,
+        pt.moopart, pt.chwpart, pt.amppart, pt.tmbpart,
+        EXTRACT(YEAR FROM age(c.cxr_date, pt.birthday))::int AS age_y
+    FROM cxr c
+    JOIN patient pt ON pt.hn = c.hn
+    WHERE pt.nationality = '99'
+),
+hn_list AS (SELECT DISTINCT hn FROM cxr_pt),
+
+/* ---------- Health worker: CID found in doctor table ---------- */
+staff AS (
+    SELECT DISTINCT trim(d.cid) AS cid
+    FROM doctor d
+    WHERE trim(d.cid) ~ '^[0-9]{13}$'
+),
+
+/* ---------- ICD10: only risk codes ---------- */
+dx AS (
+    SELECT d.hn, d.vstdate AS dx_date, upper(replace(d.icd10, '.', '')) AS icd10
+    FROM ovstdiag d
+    CROSS JOIN params p
+    WHERE d.hn IN (SELECT hn FROM hn_list)
+      AND d.vstdate BETWEEN p.dx_from AND p.d2
+      AND upper(d.icd10) ~ '^(B2[0-4]|E1[01]|N18|J44|F1[0-9])'
+    UNION ALL
+    SELECT i.hn, COALESCE(i.dchdate, i.regdate), upper(replace(x.icd10, '.', ''))
+    FROM iptdiag x
+    JOIN ipt i ON i.an = x.an
+    CROSS JOIN params p
+    WHERE i.hn IN (SELECT hn FROM hn_list)
+      AND i.regdate BETWEEN p.dx_from AND p.d2
+      AND upper(x.icd10) ~ '^(B2[0-4]|E1[01]|N18|J44|F1[0-9])'
+),
+dx_flag AS (
+    SELECT
+        c.row_id,
+        bool_or(dx.icd10 ~ '^B2[0-4]')  AS hiv_dx,
+        bool_or(dx.icd10 ~ '^E1[01]')   AS dm_dx,
+        bool_or(dx.icd10 ~ '^N18[3-5]') AS ckd_dx,
+        bool_or(dx.icd10 ~ '^J44')      AS copd_dx,
+        bool_or(dx.icd10 ~ '^F1[0-9]')  AS subst_dx,
+        string_agg(DISTINCT dx.icd10, ',') FILTER (
+            WHERE dx.icd10 ~ '^(B2[0-4]|E1[01]|N18[3-5]|J44|F1[0-9])'
+        ) AS risk_icd10
+    FROM cxr_pt c
+    JOIN dx ON dx.hn = c.hn AND dx.dx_date <= c.cxr_date
+    GROUP BY c.row_id
+),
+
+/* ---------- Clinic membership (codes from params) ---------- */
+clinic_flag AS (
+    SELECT
+        c.row_id,
+        bool_or(cm.clinic = ANY (p.cl_hiv))   AS cl_hiv,
+        bool_or(cm.clinic = ANY (p.cl_dm))    AS cl_dm,
+        bool_or(cm.clinic = ANY (p.cl_copd))  AS cl_copd,
+        bool_or(cm.clinic = ANY (p.cl_subst)) AS cl_subst,
+        string_agg(DISTINCT cm.clinic, ',')   AS risk_clinic
+    FROM cxr_pt c
+    CROSS JOIN params p
+    JOIN clinicmember cm ON cm.hn = c.hn
+                        AND cm.clinic = ANY (p.cl_hiv || p.cl_dm || p.cl_copd || p.cl_subst)
+                        AND (cm.regdate IS NULL OR cm.regdate <= c.cxr_date)
+    GROUP BY c.row_id
+),
+
+/* ---------- Lab: resolve item codes once ---------- */
+lab_codes AS (
+    SELECT
+        li.lab_items_code,
+        CASE
+            WHEN (cardinality(p.a1c_codes) > 0 AND li.lab_items_code::text = ANY (p.a1c_codes))
+              OR (cardinality(p.a1c_codes) = 0 AND li.lab_items_name ~* '(a1c|glycat)')
+            THEN 'A1C'
+            ELSE 'EGFR'
+        END AS kind
+    FROM lab_items li
+    CROSS JOIN params p
+    WHERE (cardinality(p.a1c_codes) > 0 AND li.lab_items_code::text = ANY (p.a1c_codes))
+       OR (cardinality(p.a1c_codes) = 0 AND li.lab_items_name ~* '(a1c|glycat)')
+       OR (cardinality(p.egfr_codes) > 0 AND li.lab_items_code::text = ANY (p.egfr_codes))
+       OR (cardinality(p.egfr_codes) = 0 AND li.lab_items_name ~* 'gfr')
+),
+lab_val AS (
+    SELECT
+        h.hn,
+        h.order_date AS lab_date,
+        h.lab_order_number,
+        lc.kind,
+        NULLIF(substring(lo.lab_order_result FROM '[0-9]+(?:\.[0-9]+)?'), '')::numeric AS val
+    FROM lab_head h
+    CROSS JOIN params p
+    JOIN lab_order lo ON lo.lab_order_number = h.lab_order_number
+    JOIN lab_codes lc ON lc.lab_items_code = lo.lab_items_code
+    WHERE h.hn IN (SELECT hn FROM hn_list)
+      AND h.order_date BETWEEN p.hist_from AND p.d2
+      AND lo.lab_order_result ~ '[0-9]'
+),
+a1c AS (
+    SELECT DISTINCT ON (c.row_id) c.row_id, v.val, v.lab_date
+    FROM cxr_pt c
+    JOIN lab_val v ON v.hn = c.hn AND v.kind = 'A1C' AND v.lab_date <= c.cxr_date
+    ORDER BY c.row_id, v.lab_date DESC, v.lab_order_number DESC
+),
+egfr AS (
+    SELECT DISTINCT ON (c.row_id) c.row_id, v.val, v.lab_date
+    FROM cxr_pt c
+    JOIN lab_val v ON v.hn = c.hn AND v.kind = 'EGFR' AND v.lab_date <= c.cxr_date
+    ORDER BY c.row_id, v.lab_date DESC, v.lab_order_number DESC
+),
+
+/* ---------- Screening (smoke / drink) ---------- */
+scr AS (
+    SELECT s.hn, s.vn, s.vstdate,
+           s.smoking_type_id::text  AS smoke_id,
+           s.drinking_type_id::text AS drink_id
+    FROM opdscreen s
+    CROSS JOIN params p
+    WHERE s.hn IN (SELECT hn FROM hn_list)
+      AND s.vstdate BETWEEN p.hist_from AND p.d2
+      AND (s.smoking_type_id IS NOT NULL OR s.drinking_type_id IS NOT NULL)
+),
+smk AS (
+    SELECT DISTINCT ON (c.row_id) c.row_id, s.smoke_id, s.vstdate
+    FROM cxr_pt c
+    JOIN scr s ON s.hn = c.hn AND s.smoke_id IS NOT NULL AND s.vstdate <= c.cxr_date
+    ORDER BY c.row_id, s.vstdate DESC, s.vn DESC
+),
+drk AS (
+    SELECT DISTINCT ON (c.row_id) c.row_id, s.drink_id, s.vstdate
+    FROM cxr_pt c
+    JOIN scr s ON s.hn = c.hn AND s.drink_id IS NOT NULL AND s.vstdate <= c.cxr_date
+    ORDER BY c.row_id, s.vstdate DESC, s.vn DESC
+),
+
+result AS (
+    SELECT
+        c.*,
+        a1c.val  AS hba1c_last, a1c.lab_date  AS hba1c_date,
+        egfr.val AS egfr_last,  egfr.lab_date AS egfr_date,
+        smk.smoke_id AS smoke_type, smk.vstdate AS smoke_date,
+        drk.drink_id AS drink_type, drk.vstdate AS drink_date,
+        d.risk_icd10,
+        cl.risk_clinic,
+        (COALESCE(d.hiv_dx,false) OR COALESCE(cl.cl_hiv,false))                       AS f1,
+        ((COALESCE(d.dm_dx,false) OR COALESCE(cl.cl_dm,false)) AND a1c.val >= 7)       AS f2,
+        (COALESCE(d.ckd_dx,false) OR egfr.val < 60)                                    AS f3,
+        (c.age_y >= 65 AND (COALESCE(d.dm_dx,false) OR COALESCE(cl.cl_dm,false)))      AS f4,
+        (c.age_y >= 65 AND (COALESCE(d.copd_dx,false) OR COALESCE(cl.cl_copd,false)))  AS f5,
+        (COALESCE(d.subst_dx,false) OR COALESCE(cl.cl_subst,false)
+            OR COALESCE(drk.drink_id = ANY (p.drink_yes), false))                      AS f6,
+        (c.age_y >= 65 AND COALESCE(smk.smoke_id = ANY (p.smoke_yes), false))          AS f7,
+        EXISTS (SELECT 1 FROM staff st WHERE st.cid = trim(c.cid))                     AS f8
+    FROM cxr_pt c
+    CROSS JOIN params p
+    LEFT JOIN dx_flag     d  ON d.row_id    = c.row_id
+    LEFT JOIN clinic_flag cl ON cl.row_id   = c.row_id
+    LEFT JOIN a1c            ON a1c.row_id  = c.row_id
+    LEFT JOIN egfr           ON egfr.row_id = c.row_id
+    LEFT JOIN smk            ON smk.row_id  = c.row_id
+    LEFT JOIN drk            ON drk.row_id  = c.row_id
+)
+
+SELECT
+    r.fy,
+    r.cxr_date,
+    r.hn,
+    r.cid,
+    ac.auth_code,
+    r.ptname,
+    r.age_y,
+    pty.name AS pttype_name,
+    CASE WHEN r.f1 OR r.f2 OR r.f3 OR r.f4 OR r.f5 OR r.f6 OR r.f7 OR r.f8
+         THEN 'Y' ELSE 'N' END AS eligible,
+    concat_ws(', ',
+        CASE WHEN r.f1 THEN '1 HIV' END,
+        CASE WHEN r.f2 THEN '2 DM_A1C>=7' END,
+        CASE WHEN r.f3 THEN '3 CKD' END,
+        CASE WHEN r.f4 THEN '4 AGE65_DM' END,
+        CASE WHEN r.f5 THEN '5 AGE65_COPD' END,
+        CASE WHEN r.f6 THEN '6 SUBSTANCE_ALCOHOL' END,
+        CASE WHEN r.f7 THEN '7 AGE65_SMOKE' END,
+        CASE WHEN r.f8 THEN '8 HEALTH_WORKER' END
+    ) AS eligible_types,
+    CASE WHEN r.f2 THEN r.hba1c_last END AS hba1c_last,
+    CASE WHEN NOT COALESCE(r.f1 OR r.f2 OR r.f3 OR r.f4 OR r.f5 OR r.f6 OR r.f7 OR r.f8, false)
+         THEN r.moopart END AS addr_moo,
+    CASE WHEN NOT COALESCE(r.f1 OR r.f2 OR r.f3 OR r.f4 OR r.f5 OR r.f6 OR r.f7 OR r.f8, false)
+         THEN tmb.name END AS addr_tambon
+
+FROM (
+    /* 1 row per patient per fiscal year:
+       first eligible CXR; if none eligible, first CXR */
+    SELECT x.*,
+           (EXTRACT(YEAR FROM x.cxr_date + INTERVAL '3 months') + 543)::int AS fy,
+           row_number() OVER (
+               PARTITION BY x.hn, EXTRACT(YEAR FROM x.cxr_date + INTERVAL '3 months')
+               ORDER BY COALESCE(x.f1 OR x.f2 OR x.f3 OR x.f4 OR x.f5 OR x.f6 OR x.f7 OR x.f8, false) DESC,
+                        x.cxr_date, x.row_id
+           ) AS rn
+    FROM result x
+) r
+LEFT JOIN pttype pty ON pty.pttype = r.pttype
+LEFT JOIN LATERAL (
+    SELECT string_agg(DISTINCT vp.auth_code, ',') AS auth_code
+    FROM visit_pttype vp
+    WHERE vp.vn = r.vn
+      AND COALESCE(vp.auth_code, '') <> ''
+) ac ON true
+LEFT JOIN thaiaddress tmb ON tmb.chwpart = r.chwpart
+                         AND tmb.amppart = r.amppart
+                         AND tmb.tmbpart = r.tmbpart
+                         AND tmb.codetype = '3'
+WHERE r.rn = 1
+ORDER BY r.cxr_date, r.hn;
+</script>
+
+<script>
+(function(){
+  const DEFAULTS = {
+    cxr:'3005047, 3000212', hiv:'013', dm:'001', copd:'011', subst:'015',
+    d1:'2025-10-01', d2:'2026-09-30', dx_from:'2010-01-01', hist_from:'2023-10-01',
+    a1c:'', egfr:'', smoke:'2, 3, 4', drink:'2, 3, 4'
+  };
+  const LIST_KEYS = ['cxr','hiv','dm','copd','subst','a1c','egfr','smoke','drink'];
+  const DATE_KEYS = ['d1','d2','dx_from','hist_from'];
+  const LABELS = {cxr:'CXR', hiv:'ARV', dm:'DM', copd:'COPD', subst:'Alcohol/substance'};
+  const STORE = 'cxr-tb-sql-params-v1';
+  const tpl = document.getElementById('tpl').textContent;
+  const out = document.getElementById('out');
+  const statusEl = document.getElementById('status');
+  const el = k => document.getElementById(k);
+  const fieldOf = k => document.querySelector('.field[data-key="'+k+'"]');
+
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+  function parseList(raw){
+    const items = raw.split(/[,\s;]+/).map(s=>s.trim().replace(/^['"]+|['"]+$/g,'')).filter(Boolean);
+    const bad = items.filter(s=>!/^[A-Za-z0-9._\-]+$/.test(s));
+    const uniq = [...new Set(items.filter(s=>/^[A-Za-z0-9._\-]+$/.test(s)))];
+    return {items:uniq, bad};
+  }
+  function sqlArray(items){
+    return items.length ? "ARRAY[" + items.map(s=>"'"+s+"'").join(',') + "]::text[]" : "ARRAY[]::text[]";
+  }
+  function setErr(k,msg){
+    const f = fieldOf(k); f.classList.toggle('bad', !!msg);
+    f.querySelector('.err').textContent = msg || '';
+  }
+
+  // load saved
+  let saved = {};
+  try{ saved = JSON.parse(localStorage.getItem(STORE) || '{}') || {}; }catch(e){ saved = {}; }
+  Object.keys(DEFAULTS).forEach(k=>{ el(k).value = (k in saved) ? saved[k] : DEFAULTS[k]; });
+
+  function render(){
+    const vals = {}, sub = {};
+    const notes = [];
+    LIST_KEYS.forEach(k=>{
+      const r = parseList(el(k).value);
+      setErr(k, r.bad.length ? 'ตัดออก (มีอักขระไม่อนุญาต): ' + r.bad.join(', ') : '');
+      vals[k] = el(k).value;
+      sub[k] = sqlArray(r.items);
+      if (k==='cxr' && !r.items.length){ setErr(k,'ต้องมีรหัส CXR อย่างน้อย 1 รหัส'); }
+      if (['hiv','dm','copd','subst'].includes(k) && !r.items.length) notes.push('ไม่ระบุคลินิก '+LABELS[k]+' (ใช้ ICD10 อย่างเดียว)');
+    });
+    DATE_KEYS.forEach(k=>{
+      const v = el(k).value; vals[k] = v;
+      const ok = /^\d{4}-\d{2}-\d{2}$/.test(v);
+      setErr(k, ok ? '' : 'ระบุวันที่');
+      sub[k] = "DATE '" + (ok ? v : DEFAULTS[k]) + "'";
+    });
+    if (vals.d1 && vals.d2 && vals.d1 > vals.d2) setErr('d2','วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
+
+    Object.keys(DEFAULTS).forEach(k=>{
+      const norm = s => s.replace(/\s+/g,'').replace(/['"]/g,'');
+      fieldOf(k).classList.toggle('changed', norm(vals[k]) !== norm(DEFAULTS[k]));
+    });
+
+    const map = {
+      D1:sub.d1, D2:sub.d2, DX_FROM:sub.dx_from, HIST_FROM:sub.hist_from,
+      CXR:sub.cxr, CL_HIV:sub.hiv, CL_DM:sub.dm, CL_COPD:sub.copd, CL_SUBST:sub.subst,
+      A1C:sub.a1c, EGFR:sub.egfr, SMOKE:sub.smoke, DRINK:sub.drink
+    };
+    const W = 40, pad = t => ' '.repeat(Math.max(1, W - map[t].length));
+    const plain = tpl.replace(/\{\{(\w+)\}\} /g, (m,t)=>map[t]+pad(t));
+    let html = esc(tpl).replace(/\{\{(\w+)\}\} /g, (m,t)=>'<mark>'+esc(map[t])+'</mark>'+pad(t));
+    html = html.replace(/(--[^\n]*)/g,'<span class="cm">$1</span>');
+    out.innerHTML = html;
+    out.dataset.plain = plain;
+
+    const n = document.querySelectorAll('.field.changed').length;
+    statusEl.innerHTML = (n ? 'แก้ไขจากค่าเดิม <b>'+n+'</b> ตัวแปร · ' : 'ใช้ค่าเดิมทั้งหมด · ')
+      + 'ส่วนที่ไฮไลต์สีเหลืองคือค่าที่มาจากช่องกรอก'
+      + (notes.length ? '<br>' + notes.join(' · ') : '');
+
+    try{ localStorage.setItem(STORE, JSON.stringify(vals)); }catch(e){}
+  }
+
+  Object.keys(DEFAULTS).forEach(k=>el(k).addEventListener('input', render));
+
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    Object.keys(DEFAULTS).forEach(k=>{ el(k).value = DEFAULTS[k]; });
+    render();
+  });
+
+  function flash(){
+    const m = document.getElementById('copiedMsg');
+    m.classList.add('on'); setTimeout(()=>m.classList.remove('on'),1600);
+  }
+  function fallbackCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    let ok=false; try{ ok = document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+    if(!ok){ // last resort: select the code so the user can Ctrl+C
+      const r = document.createRange(); r.selectNodeContents(out);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      statusEl.innerHTML = 'เลือกโค้ดไว้แล้ว กด Ctrl+C เพื่อคัดลอก';
+    } else flash();
+  }
+  function copy(){
+    const text = out.dataset.plain || '';
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(flash, ()=>fallbackCopy(text));
+    } else fallbackCopy(text);
+  }
+  document.getElementById('copyBtn').addEventListener('click', copy);
+  document.getElementById('copyBtn2').addEventListener('click', copy);
+
+  render();
+})();
+</script>
+</body>
+</html>
